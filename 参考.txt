@@ -29,3 +29,6 @@ http://threejs.org/examples/#webgl_nearestneighbour
 http://threejs.org/examples/#misc_controls_trackball
 ƒJƒƒ‰‘€ì
 
+http://threejs.org/examples/#webgl_geometry_convex
+ƒ|ƒŠƒSƒ“
+
