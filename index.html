@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html lang="en">
 	<head>
-		<title>three.js webgl - geometry - catmull spline editor</title>
+		<title>modeler</title>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 		<style>
@@ -56,12 +56,11 @@
 	
 	var raycaster = new THREE.Raycaster();
 	var offset = new THREE.Vector3();
-	var geometry = new THREE.BoxGeometry(20, 20, 20);
+	var boxGeometry = new THREE.BoxGeometry(20, 20, 20);
 
 	var ARC_SEGMENTS = 200;
-	var splineMesh;
 
-	var splines = {};
+	var spline;
 	var selection;
 
 	init();
@@ -178,7 +177,7 @@
 		axis.position.set(-500, -500, -500);
 		scene.add(axis);
 		
-		scene.add( new THREE.AxisHelper( 500 ) );
+		scene.add(new THREE.AxisHelper(500));
 		
 		// Plane, that helps to determinate an intersection position
 		plane = new THREE.Mesh(
@@ -205,7 +204,7 @@
 		info.style.top = '10px';
 		info.style.width = '100%';
 		info.style.textAlign = 'center';
-		info.innerHTML = 'catmull-rom rom spline comparisions';
+		info.innerHTML = 'modeler';
 		options = document.createElement('div');
 		options.style.position = 'absolute';
 		options.style.left = '100px';
@@ -217,10 +216,6 @@
 			Points: <input type="button" onclick="addPoint();" value="+" />\
 			<input type="button" onclick="removePoint();" value="-" />\
 			<input type="button" onclick="exportSpline();" value="Export" /><br />\
-			<input type="checkbox" id="uniform" /> <label for="uniform">Uniform Catmull-rom</label> \
-			  <input type="range" id="tension" onchange="splines.uniform.tension = tension.value;updateSplineOutline();" min=0 max=1 step=0.01 value=0.5 /> <span id="tension_value" /></span> <br />\
-			<input type="checkbox" id="centripetal" checked /> <label for="centripetal">Centripetal Catmull-rom</label><br />\
-			<input type="checkbox" id="chordal" /> <label for="chordal">Chordal Catmull-rom</label><br />\
 		';
 		
 		container.appendChild(info);
@@ -237,10 +232,6 @@
 		controls.damping = 0.2;
 		controls.addEventListener('change', render);
 
-		/*******
-		 * Curves
-		 *********/
-
 		var i;
 		for (i = 0; i < splinePointsLength; i ++) {
 			addSplineObject(positions[ i ]);
@@ -255,23 +246,10 @@
 			geometry.vertices.push(new THREE.Vector3());
 		}
 
-		var curve;
-		curve = new THREE.CatmullRomCurve3(positions);
-		curve.type = 'catmullrom';
-		curve.mesh = new THREE.Line(
-			geometry.clone(),
-			new THREE.LineBasicMaterial({
-				color: 0xff0000,
-				opacity: 0.35,
-				linewidth: 2
-			})
-		);
-		curve.mesh.castShadow = true;
-		splines.uniform = curve;
-
-		curve = new THREE.CatmullRomCurve3(positions);
-		curve.type = 'centripetal';
-		curve.mesh = new THREE.Line(
+		spline = new THREE.CatmullRomCurve3(positions);
+		
+		var mesh;
+		mesh = new THREE.Line(
 			geometry.clone(),
 			new THREE.LineBasicMaterial({
 				color: 0x00ff00,
@@ -279,26 +257,17 @@
 				linewidth: 2
 			})
 		);
-		curve.mesh.castShadow = true;
-		splines.centripetal = curve;
-
-		curve = new THREE.CatmullRomCurve3(positions);
-		curve.type = 'chordal';
-		curve.mesh = new THREE.Line(
-			geometry.clone(),
-			new THREE.LineBasicMaterial({
-				color: 0x0000ff,
-				opacity: 0.35,
-				linewidth: 2
-			})
+		mesh.castShadow = true;
+		scene.add(mesh);
+		spline.mesh = mesh;
+		
+		mesh = new THREE.Mesh(
+			new THREE.Geometry(),
+			new THREE.MeshNormalMaterial()
 		);
-		curve.mesh.castShadow = true;
-		splines.chordal = curve;
-
-		for (var k in splines) {
-			var spline = splines[ k ];
-			scene.add(spline.mesh);
-		}
+		mesh.castShadow = true;
+		scene.add(mesh);
+		spline.mesh2 = mesh;
 
 		load( [ new THREE.Vector3( 289.76843686945404, 452.51481137238443, 56.10018915737797 ),
 				new THREE.Vector3( -53.56300074753207, 171.49711742836848, -14.495472686253045 ),
@@ -309,7 +278,7 @@
 	function addSplineObject( position ) {
 
 		var object = new THREE.Mesh(
-			geometry,
+			boxGeometry,
 			new THREE.MeshLambertMaterial({
 				color: Math.random() * 0xffffff
 			})
@@ -351,16 +320,19 @@
 
 	function updateSplineOutline() {
 
-		var p;
-		for (var k in splines) {
-			var spline = splines[ k ];
-			splineMesh = spline.mesh;
-			for (var i = 0; i < ARC_SEGMENTS; i ++) {
-				p = splineMesh.geometry.vertices[ i ];
-				p.copy(spline.getPoint(i / (ARC_SEGMENTS - 1)));
-			}
-			splineMesh.geometry.verticesNeedUpdate = true;
+		var splineMesh = spline.mesh;
+		for (var i = 0; i < ARC_SEGMENTS; i ++) {
+			p = splineMesh.geometry.vertices[ i ];
+			p.copy(spline.getPoint(i / (ARC_SEGMENTS - 1)));
 		}
+		splineMesh.geometry.verticesNeedUpdate = true;
+		
+		var geom = spline.mesh2.geometry;
+		geom.vertices = positions.slice();
+		geom.faces.push(new THREE.Face3(0, 2, 1));
+		geom.faces.push(new THREE.Face3(0, 3, 2));
+		geom.verticesNeedUpdate = true;
+		geom.computeFaceNormals();
 
 	}
 
@@ -378,16 +350,16 @@
 
 	}
 
-	function load( new_positions ) {
+	function load( newPositions ) {
 
-		while (new_positions.length > positions.length) {
+		while (newPositions.length > positions.length) {
 			addPoint();
 		}
-		while (new_positions.length < positions.length) {
+		while (newPositions.length < positions.length) {
 			removePoint();
 		}
 		for (i = 0; i < positions.length; i ++) {
-			positions[ i ].copy(new_positions[ i ]);
+			positions[ i ].copy(newPositions[ i ]);
 		}
 		updateSplineOutline();
 		
@@ -404,9 +376,6 @@
 
 	function render() {
 
-		splines.uniform.mesh.visible = uniform.checked;
-		splines.centripetal.mesh.visible = centripetal.checked;
-		splines.chordal.mesh.visible = chordal.checked;
 		renderer.render(scene, camera);
 
 	}
